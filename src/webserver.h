@@ -431,13 +431,6 @@ void handleHelp() {
 void addFoot(String &str) {
   str += F("<div style='text-align:right;font-size:11px;color:#aaa;'><hr/>");
 
-  // str += F("[");
-  // if (monitoring) str += F("M"); else str += F("m");
-  // if (hourFlag) str += F("H"); else str += F("h");
-  // if (dayFlag) str += F("D"); else str += F("d");
-  // if (weekFlag) str += F("W"); else str += F("w");
-  // str += F("] ");
-
   str += wifiManager->getWifiStatusText();
   str += "; ";
   if (Mqtt) {

@@ -1,3 +1,6 @@
+// #include "./statistics/Statistics.h"
+// #include "./statistics/StatisticsLine.h"
+
 #ifdef NEDERLANDS
 
 void handleSetup() {
@@ -145,6 +148,10 @@ void handleP1() {
   else
     eenheid2 = " W'></div></p>";
 
+  Statistics statistics(FST);
+  StatisticsLine lineStartOfDay;
+  bool hasStartOfDay = statistics.getFirstOfToday(lineStartOfDay);
+
   addHead(str, 60);
   addIntro(str);
 
@@ -156,7 +163,12 @@ void handleP1() {
   str += eenheid;
   str += "<div class='column' style='text-align:right'><b>vandaag</b><input "
          "type='text' class='form-control c7' value='";
-  str += dsmrData.energy_delivered_tariff1.val() - atof(log_data.dayE1);
+  if (hasStartOfDay) {
+    str += dsmrData.energy_delivered_tariff1.val() -
+           (float)lineStartOfDay.energy_delivered_tariff1 / 1000;
+  } else {
+    str += 0;
+  }
   str += eenheid;
   str += "</div></p>";
 
@@ -166,7 +178,12 @@ void handleP1() {
   str += eenheid;
   str += "<div class='column' style='text-align:right'><b>vandaag</b><input "
          "type='text' class='form-control c7' value='";
-  str += dsmrData.energy_delivered_tariff2.val() - atof(log_data.dayE2);
+  if (hasStartOfDay) {
+    str += dsmrData.energy_delivered_tariff2.val() -
+           (float)lineStartOfDay.energy_delivered_tariff2 / 1000;
+  } else {
+    str += 0;
+  }
   str += eenheid;
   str += "</div></p>";
 
@@ -176,7 +193,12 @@ void handleP1() {
   str += eenheid;
   str += "<div class='column' style='text-align:right'><b>vandaag</b><input "
          "type='text' class='form-control c7' value='";
-  str += dsmrData.energy_returned_tariff1.val() - atof(log_data.dayR1);
+  if (hasStartOfDay) {
+    str += dsmrData.energy_returned_tariff1.val() -
+           (float)lineStartOfDay.energy_returned_tariff1 / 1000;
+  } else {
+    str += 0;
+  }
   str += eenheid;
   str += "</div></p>";
 
@@ -186,7 +208,12 @@ void handleP1() {
   str += eenheid;
   str += "<div class='column' style='text-align:right'><b>vandaag</b><input "
          "type='text' class='form-control c7' value='";
-  str += dsmrData.energy_returned_tariff2.val() - atof(log_data.dayR2);
+  if (hasStartOfDay) {
+    str += dsmrData.energy_returned_tariff2.val() -
+           (float)lineStartOfDay.energy_returned_tariff2 / 1000;
+  } else {
+    str += 0;
+  }
   str += eenheid;
   str += "</div></p>";
 
@@ -202,7 +229,7 @@ void handleP1() {
 
   str += "<p><div class='row'><b>Actueel retour</b><input type='text' "
          "class='form-control c6' value='";
-  str += String(dsmrData.power_returned.val());;
+  str += String(dsmrData.power_returned.val());
   str += eenheid2;
 
   if (dsmrData.P1prot() == 5) {
@@ -274,7 +301,12 @@ void handleP1() {
   str += F(" m3'></div>");
   str += "<div class='column' style='text-align:right'><b>vandaag</b><input "
          "type='text' class='form-control c7' value='";
-  str += dsmrData.gas_delivered.toFloat() - atof(log_data.dayG);
+  if (hasStartOfDay) {
+    str += dsmrData.gas_delivered.toFloat() -
+           (float)lineStartOfDay.gas_delivered / 1000;
+  } else {
+    str += 0;
+  }
   str += " m3'></div></div></p>";
   str += F("</fieldset></form>");
   str += F("<form action='/' method='POST'><button class='button "

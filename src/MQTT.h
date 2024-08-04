@@ -26,6 +26,9 @@
  * @see http://esp8266thingies.nl
  */
 
+// #include "./statistics/Statistics.h"
+// #include "./statistics/StatisticsLine.h"
+
 /* MQTT part based on
  https://github.com/daniel-jong/esp8266_p1meter/blob/master/esp8266_p1meter/esp8266_p1meter.ino
 
@@ -252,41 +255,47 @@ void MQTT_reporter() {
     send_metric("meter-stats/short_power_drops", dsmrData.electricity_sags_l1);
     send_metric("meter-stats/short_power_peaks", dsmrData.electricity_swells_l1);
 
+    Statistics statistics(FST);
+    StatisticsLine lineStartOfDay;
+    statistics.getFirstOfToday(lineStartOfDay);
+    StatisticsLine lineStartOfMonth;
+    statistics.getFirstOfMonth(lineStartOfMonth);
+
     send_metric("day-consumption/electricity1",
-                (dsmrData.energy_delivered_tariff1.val() - atof(log_data.dayE1)));
+                (dsmrData.energy_delivered_tariff1.val() - (float)lineStartOfDay.energy_delivered_tariff1 / 1000));
     send_metric("day-consumption/electricity2",
-                (dsmrData.energy_delivered_tariff2.val() - atof(log_data.dayE2)));
+                (dsmrData.energy_delivered_tariff2.val() - (float)lineStartOfDay.energy_delivered_tariff2 / 1000));
     send_metric("day-consumption/electricity1_returned",
-                (dsmrData.energy_returned_tariff1.val() - atof(log_data.dayR1)));
+                (dsmrData.energy_returned_tariff1.val() - (float)lineStartOfDay.energy_returned_tariff1 / 1000));
     send_metric("day-consumption/electricity2_returned",
-                (dsmrData.energy_returned_tariff2.val() - atof(log_data.dayR2)));
+                (dsmrData.energy_returned_tariff2.val() - (float)lineStartOfDay.energy_returned_tariff2 / 1000));
 
     send_metric("day-consumption/electricity_merged",
-                ((dsmrData.energy_delivered_tariff1.val() - atof(log_data.dayE1)) +
-                 (dsmrData.energy_delivered_tariff2.val() - atof(log_data.dayE2))));
+                ((dsmrData.energy_delivered_tariff1.val() - (float)lineStartOfDay.energy_delivered_tariff1 / 1000) +
+                 (dsmrData.energy_delivered_tariff2.val() - (float)lineStartOfDay.energy_delivered_tariff2 / 1000)));
     send_metric("day-consumption/electricity_returned_merged",
-                ((dsmrData.energy_returned_tariff1.val() - atof(log_data.dayR1)) +
-                 (dsmrData.energy_returned_tariff2.val() - atof(log_data.dayR2))));
+                ((dsmrData.energy_returned_tariff1.val() - (float)lineStartOfDay.energy_returned_tariff1 / 1000) +
+                 (dsmrData.energy_returned_tariff2.val() - (float)lineStartOfDay.energy_returned_tariff2 / 1000)));
     send_metric("day-consumption/gas",
-                (dsmrData.gas_delivered.toFloat() - atof(log_data.dayG)));
+                (dsmrData.gas_delivered.toFloat() - (float)lineStartOfDay.gas_delivered / 1000));
 
     send_metric("current-month/electricity1",
-                (dsmrData.energy_delivered_tariff1.val() - atof(log_data.monthE1)));
+                (dsmrData.energy_delivered_tariff1.val() - (float)lineStartOfMonth.energy_delivered_tariff1 / 1000));
     send_metric("current-month/electricity2",
-                (dsmrData.energy_delivered_tariff2.val() - atof(log_data.monthE2)));
+                (dsmrData.energy_delivered_tariff2.val() - (float)lineStartOfMonth.energy_delivered_tariff2 / 1000));
     send_metric("current-month/electricity1_returned",
-                (dsmrData.energy_returned_tariff1.val() - atof(log_data.monthR1)));
+                (dsmrData.energy_returned_tariff1.val() - (float)lineStartOfMonth.energy_returned_tariff1 / 1000));
     send_metric("current-month/electricity2_returned",
-                (dsmrData.energy_returned_tariff2.val() - atof(log_data.monthR2)));
+                (dsmrData.energy_returned_tariff2.val() - (float)lineStartOfMonth.energy_returned_tariff2 / 1000));
 
     send_metric("current-month/electricity_merged",
-                ((dsmrData.energy_delivered_tariff1.val() - atof(log_data.monthE1)) +
-                 (dsmrData.energy_delivered_tariff2.val() - atof(log_data.monthE2))));
+                ((dsmrData.energy_delivered_tariff1.val() - (float)lineStartOfMonth.energy_delivered_tariff1 / 1000) +
+                 (dsmrData.energy_delivered_tariff2.val() - (float)lineStartOfMonth.energy_delivered_tariff2 / 1000)));
     send_metric("current-month/electricity_returned_merged",
-                ((dsmrData.energy_returned_tariff1.val() - atof(log_data.monthR1)) +
-                 (dsmrData.energy_returned_tariff2.val() - atof(log_data.monthR2))));
+                ((dsmrData.energy_returned_tariff1.val() - (float)lineStartOfMonth.energy_returned_tariff1 / 1000) +
+                 (dsmrData.energy_returned_tariff2.val() - (float)lineStartOfMonth.energy_returned_tariff2 / 1000)));
     send_metric("current-month/gas",
-                (dsmrData.gas_delivered.toFloat() - atof(log_data.monthG)));
+                (dsmrData.gas_delivered.toFloat() - (float)lineStartOfMonth.gas_delivered / 1000));
   } else {
     send_metric("equipmentID", dsmrData.equipment_id);
 

@@ -12,6 +12,7 @@
 #endif
 
 #include <fmt/format.h>
+#include <fmt/chrono.h>
 
 #ifdef REDEFINE_B1
 #pragma pop_macro("B1")

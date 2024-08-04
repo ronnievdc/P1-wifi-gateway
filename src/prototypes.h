@@ -1,5 +1,7 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
+#include "./statistics/StatisticsLine.h"
+#include "./statistics/Statistics.h"
 
 // p1debug.h
 void readVoltage();
@@ -16,9 +18,7 @@ void OBISparser(int len);
 void alignToTelegram();
 void RTS_on();
 void RTS_off();
-bool isNumber(char *res, int len);
 int FindCharInArray(char array[], char c, int len);
-String timestamp();
 String timestampkaal();
 void timeIsSet_cb();
 void createToken();
@@ -28,17 +28,13 @@ void writeFile(const char *path, const char *message);
 void appendFile(const char *path, const char *message);
 void renameFile(const char *path1, const char *path2);
 void deleteFile(const char *path);
-int numLines(const char *path);
 boolean MountFS();
 static void handleNotFound();
 void zapFiles();
 void zapConfig();
 void formatFS();
-String totalXY(const char *type, String period);
 void identifyMeter();
 void initTimers();
-void checkCounters();
-void resetFlags();
 void doWatchDogs();
 char* string2char(String str);
 
@@ -57,17 +53,8 @@ void UpdateGas();
 void UpdateElectricity();
 
 // logging.h
-void doInitLogVars();
-void doInitLogVarsGas();
-void doMinutelyLog();
 void doHourlyLog();
 void doDailyLog();
-void doWeeklyLog();
-void doMonthlyLog();
-void doYearlyLog();
-void resetEnergyDaycount();
-void resetEnergyMonthcount();
-void resetGasCount();
 void DirListing();
 
 // MQTT.h

@@ -58,7 +58,6 @@
      state = CHECKSUM;
      //add to crc calc
      dataEnd = true;         // we're at the end of the data stream, so mark (for raw data output) We don't know if the data is valid, we will test this below.
-   //  gas22Flag=false;        // assume we have also collected the Gas value
      currentCRC=CRC16(currentCRC,(unsigned char*)telegram+endChar, 1);
      char *telegramCRCStart = telegram + endChar + 1;
      std::string messageCRC(telegramCRCStart, telegramCRCStart + 4);
@@ -80,7 +79,6 @@
          datagramValid = true;
          dataFailureCount = 0;
          LastSample = millis();
- //      gotPowerReading = true; // we at least got electricty readings. Not all setups have a gas meter attached, so gotGasReading is handled when we actually get gasIds coming in
          return;
        }    else {
          Log.errorln("\n===INVALID CRC FOUND!===");

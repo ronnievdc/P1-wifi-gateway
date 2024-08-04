@@ -28,6 +28,11 @@
 
 #if GRAPH == 1
 
+#include "./timeutils.h"
+#include "./statistics/Statistics.h"
+#include "./statistics/StatisticsLine.h"
+#include "./statistics/StatisticsStream.h"
+
 void handleGraphMenu() {
   String str = "";
 
@@ -101,38 +106,19 @@ void selectGraph() {
     Log.verboseln(switcher);
     switch (atoi(switcher)) {
     case 1: // delivered T1/T2
-      //     theGraph("E1.log", "E2.log", "Elektriciteit gebruik T1",
-      //     "Elektriciteit gebruik T2", "[{label:'uur',
-      //     type:'number'},{label:'kWh', type:'number'}],", period );
       theGraph("E1", "E2", "Elektriciteit gebruik T1",
-               "Elektriciteit gebruik T2",
-               "[{label:'uur', type:'number'},{label:'kWh', type:'number'}],",
-               period);
+               "Elektriciteit gebruik T2", "kWh", period);
       break;
     case 2: // returned T1/T2
-            //    theGraph("R1.log", "R2.log","Elektriciteit retour T1",
-            //    "Elektriciteit retour T2", "[{label:'uur',
-            //    type:'number'},{label:'kWh', type:'number'}],", period);
       theGraph("R1", "R2", "Elektriciteit retour T1", "Elektriciteit retour T2",
-               "[{label:'uur', type:'number'},{label:'kWh', type:'number'}],",
-               period);
+               "kWh", period);
       break;
     case 3: // Total E
-      //      theGraph("TE.log", "TR.log", "Elektriciteit totaal gebruik",
-      //      "Elektriciteit totaal retour", "[{label:'uur',
-      //      type:'number'},{label:'kWh', type:'number'}],", period);
       theGraph("TE", "TR", "Elektriciteit totaal gebruik",
-               "Elektriciteit totaal retour",
-               "[{label:'uur', type:'number'},{label:'kWh', type:'number'}],",
-               period);
+               "Elektriciteit totaal retour", "kWh", period);
       break;
     case 4: // Gas
-      //      theGraph("G.log", "","Gas","", "[{label:'uur',
-      //      type:'number'},{label:'kubieke meter', type:'number'}],", period);
-      theGraph("G", "", "Gas", "",
-               "[{label:'uur', type:'number'},{label:'kubieke meter', "
-               "type:'number'}],",
-               period);
+      theGraph("G", "", "Gas", "", "kubieke meter", period);
       break;
     default:
       break;
@@ -140,109 +126,47 @@ void selectGraph() {
   }
 }
 
+void sendStatistics(const String &type, const String &period) {
+  Statistics statistics(FST);
+  StatisticsStreamServer statStream(server, type, period);
+
+  if (period == "day") { // past 24 to 48 hours
+    statistics.sendHours(statStream);
+  } else if (period == "week") { // 7 days
+    timeManager.printTimeStatus();
+    time_t startOfToday = previousMidnight(now());
+    // Need 8 records, to calculate 7 day differences
+    time_t startOfWeekBefore = startOfToday - (8 * SECS_PER_DAY);
+    statistics.sendDays(statStream, startOfWeekBefore, startOfToday);
+  } else if (period == "month") { // Same day previous month to now (+- 30 days)
+    time_t from = getSameDayPreviousMonth();
+    time_t to = createTime(year(), month(), day());
+    statistics.sendDays(statStream, from, to);
+  } else if (period == "year") { // This calendar year
+    time_t from = createTime(year(), 1, 1);
+    time_t to = createTime(year() + 1, 1, 1);
+
+    // sendWeeks / sendMonths
+    statistics.sendDays(statStream, from, to);
+  }
+}
+
 void theGraph(const char *type1, const char *type2, String title1,
               String title2, String label, String period) {
   monitoring = false;
   String str = "";
-  char buffer[64];
-  char path1[20];
-  char path2[20];
   String pageTitle = "";
 
+  String xAxisFormat = "";
   if (period == "day") {
-    strcpy(path1, "/Hour");
-    strcat(path1, type1);
-    strcpy(path2, "/Hour");
-    strcat(path2, type2);
-    pageTitle = " Vandaag ";
+    xAxisFormat = "HH:mm"; // 14:00
   } else if (period == "week") {
-    strcpy(path1, "/Week");
-    strcat(path1, type1);
-    strcpy(path2, "/Week");
-    strcat(path2, type2);
-    pageTitle = " Deze week ";
+    xAxisFormat = "dddd";  // Donderdag
   } else if (period == "month") {
-    strcpy(path1, "/Month");
-    strcat(path1, type1);
-    strcpy(path2, "/Month");
-    strcat(path2, type2);
-    pageTitle = " Deze maand ";
-
+    xAxisFormat = "d MMMM"; // 6 Januari
   } else if (period == "year") {
-    strcpy(path1, "/Year");
-    strcat(path1, type1);
-    strcpy(path2, "/Year");
-    strcat(path2, type2);
-    pageTitle = " Dit jaar ";
+    xAxisFormat = "d MMMM yyyy"; // 6 Januari 2024
   }
-  strcat(path1, ".log");
-  strcat(path2, ".log");
-
-  /*
-  const char* measures[] = {"E1", "E2", "R1", "R2", "TE", "TR", "G"};
-  const char* offsets[] = {"hour", "day", "week", "month", "year"};
-  int *target1, *target2;
-  int measure1, measure2;
-  char startval1[12], startval2[12];
-
-  int offset =0;
-    for (int i = 0; i < 6; i++) {
-      if (String(type1) == measures[i]) {
-        measure1 = i;
-        break;
-      }
-    }
-    for (int i = 0; i < 6; i++) {
-      if (String(type2) == measures[i]) {
-        measure2 = i;
-        break;
-      }
-    } // we no know which datum we need to retrieve from log_data, now we have
-  to find the correct offset (period) for (int i = 0; i < 6; i++) { if (period
-  == offsets[i]) { offset = i; break;
-      }
-    }
-    // we now have pointers to direct us to the correct location in the log_data
-  struct to retrieve the beginning of period value
-    //each period uses 7 * 12 bytes
-
-  target1 = (int*)&log_data + offset * 84 + measure1 * 12; //
-  Log.verbose("Target 1: ");
-  Log.verboseln(offset * 84 + measure1 * 12);
-   for (int i = 0; i < 12; i++) {
-    startval1[i] = *(target1);
-    target1++;
-   }
-   Log.verbose("value :");
-   Log.verboseln(startval1);
-  //target2 = (int*)&log_data + offset * 84 + measure2 * 12; //
-
-   int *p;
-    // take address of displayDefault and assign to the pointer
-    p = (int*)&displayDefault;
-
-    // loop thorugh the elements of the struct
-    for (uint8_t cnt = 0; cnt < sizeof(displayDefault) / sizeof(int); cnt++)
-    {
-      // p points to an address of an element in the array; *p gets you the
-  value ofthat address
-      // print it and next point the pointer to the address of the next element
-      Log.verboseln(*(p++));
-    }
-
-    int *p;
-    p = (int*)&log_data;
-
-  */
-  // Log.verbose("file1 to read: ");
-  // Log.verboseln(path1);
-  // Log.verbose("file2 to read: ");
-  // Log.verboseln(path2);
-
-  // https://stackoverflow.com/questions/44159990/how-to-add-a-total-to-a-chart-in-google-charts
-
-  File file1 = FST.open(path1, "r");
-  File file2 = FST.open(path2, "r");
 
   addGraphHead(str);
   str += F("<script type=\"text/javascript\" "
@@ -253,38 +177,41 @@ void theGraph(const char *type1, const char *type2, String title1,
   if (type2[0] != '\0') {
     str += F("google.charts.setOnLoadCallback(drawChart2);");
   }
-
+  str += F("function drawChart1() {");
+  str += F("var rawData = [");
   server.sendContent(str);
-  // Log.verboseln(str);
 
-  // str += F("function getSum(data, column){var total = 0;for (i = 0; i <
-  // data.getNumberOfRows(); i++) total = total + data.getValue(i, column);
-  // return total;}");
-
-  str = F("function drawChart1() { var data = new "
-          "google.visualization.arrayToDataTable([");
-  str += label; // F("[\"uur\", \"m^3\"], ");
-  server.sendContent(str);
-  // Log.verboseln(str);
-
-  if (!file1) {
-    Log.verboseln("Failed to open file for reading");
-    server.sendContent("['0', 0],");
-    //    Log.verbose("['0', 0], ");
-  } else {
-    while (file1.available()) {
-      int l = file1.readBytesUntil('\n', buffer, sizeof(buffer));
-      buffer[l] = 0;
-      server.sendContent(buffer);
-      //     Log.verboseln(buffer);
-    }
-    file1.close();
-  }
   delay(200);
-  str = F("]);");
-  str += F("var options = {title: '");
-  str += title1;
-  str += F(" '};"); //'Gasverbruik per uur in m^3'};");
+  sendStatistics(String(type1), period);
+  delay(200);
+
+  str = F("];");
+  str += F("var total = rawData.length ? rawData[rawData.length - 1][1] - rawData[0][1] : 0;");
+  str += F("document.getElementById('total-1').innerText = total.toFixed(3);");
+  str += F("var data = new google.visualization.DataTable();");
+  str += F("data.addColumn('date', 'Uur');");
+  str += F("data.addColumn('number', '") + label + F("');");
+  if (type1[0] == 'T') {
+    // Convert timestap to Date object
+    str += F("var rows = rawData.map((currentValue) => [new Date(currentValue[0]*1000), currentValue[1]] );");
+  } else {
+    // Calculate the difference between 2 consecutive records
+    str += F("var prevDate = null;");
+    str += F("var prevValue = null;");
+    str += F("var rows = rawData.reduce((accumulator, currentValue, currentIndex) => {");
+    str += F("if (currentIndex !== 0) { accumulator.push([new Date(prevDate*1000), currentValue[1] - prevValue]);}");
+    str += F("prevDate = currentValue[0];");
+    str += F("prevValue = currentValue[1];");
+    str += F("return accumulator;");
+    str += F("}, []);");
+  }
+
+  // Add the data to the chart
+  str += F("data.addRows(rows);");
+  server.sendContent(str);
+
+  // TODO: Date format
+  str = F("var options = {title: '") + title1 + F("', hAxis: {format: '") + xAxisFormat + F("'}};");
   if (type1[0] == 'T')
     str +=
         F("var chart = new "
@@ -301,30 +228,40 @@ void theGraph(const char *type1, const char *type2, String title1,
   str = "";
 
   if (type2[0] != '\0') {
-    str = F("function drawChart2() { var data = new "
-            "google.visualization.arrayToDataTable([");
-    str += label; // F("[\"uur\", \"m^3\"], ");
+    str += F("function drawChart2() {");
+    str += F("var rawData = [");
     server.sendContent(str);
-    //  Log.verboseln(str);
 
-    if (!file2) {
-      Log.verboseln("Failed to open file for reading");
-      server.sendContent("['0', 0],");
-      Log.verbose("['0', 0], ");
+    delay(200);
+    sendStatistics(String(type2), period);
+    delay(200);
+
+    str = F("];");
+    str += F("var total = rawData.length ? rawData[rawData.length - 1][1] - rawData[0][1] : 0;");
+    str += F("document.getElementById('total-2').innerText = total.toFixed(3);");
+    str += F("var data = new google.visualization.DataTable();");
+    str += F("data.addColumn('date', 'Uur');");
+    str += F("data.addColumn('number', '") + label + F("');");
+    if (type1[0] == 'T') {
+      // Convert timestap to Date object
+      str += F("var rows = rawData.map((currentValue) => [new Date(currentValue[0]*1000), currentValue[1]] );");
     } else {
-      while (file2.available()) {
-        int l = file2.readBytesUntil('\n', buffer, sizeof(buffer));
-        buffer[l] = 0;
-        server.sendContent(buffer);
-        Log.verbose("%s", str);
-      }
-      file2.close();
-      delay(200);
+      // Calculate the difference between 2 consecutive records
+      str += F("var prevDate = null;");
+      str += F("var prevValue = null;");
+      str += F("var rows = rawData.reduce((accumulator, currentValue, currentIndex) => {");
+      str += F("if (currentIndex !== 0) { accumulator.push([new Date(prevDate*1000), currentValue[1] - prevValue]);}");
+      str += F("prevDate = currentValue[0];");
+      str += F("prevValue = currentValue[1];");
+      str += F("return accumulator;");
+      str += F("}, []);");
     }
-    str = F("]);");
-    str += F("var options = {title: '");
-    str += title2; //'Gasverbruik per uur in m^3'
-    str += F(" '};");
+
+    // Add the data to the chart
+    str += F("data.addRows(rows);");
+    server.sendContent(str);
+    //'Gasverbruik per uur in m^3'
+    str = F("var options = {title: '") + title1 + F("', hAxis: {format: '") + xAxisFormat + F("'}};");
     if (type2[0] == 'T')
       str += F(
           "var chart = new "
@@ -342,21 +279,30 @@ void theGraph(const char *type1, const char *type2, String title1,
   str += F("</head><body>");
   str += ("<div "
           "style='text-align:left;display:inline-block;color:#000000;width:"
-          "600px;'><div style='text-align:center;color:#000000;'><h2>P1 "
+          "80vw;max-width: 1200px;'><div style='text-align:center;color:#000000;'><h2>P1 "
           "wifi-gateway</h2></div><br>");
 
   str += F("<fieldset><legend><b>");
+
+  if (period == "day") {
+    pageTitle = " Vandaag ";
+  } else if (period == "week") {
+    pageTitle = " Deze week ";
+  } else if (period == "month") {
+    pageTitle = " Deze maand ";
+  } else if (period == "year") {
+    pageTitle = " Dit jaar ";
+  }
   str += pageTitle;
+
   str += F("</b></legend>");
   str += F("<div id='Chart1' style='width:100%; max-width:1200px; "
            "height:500px'></div><br>");
-  str += F("Totaal deze periode: ");
-  str += totalXY(type1, period);
+  str += F("Totaal deze periode: <span id='total-1'>0</span>");
   if (type2[0] != '\0') {
     str += F("<div id=\"Chart2\" style=\"width:100%; max-width:1200px; "
              "height:500px\"></div><br>");
-    str += F("Totaal deze periode: ");
-    str += totalXY(type2, period);
+    str += F("Totaal deze periode: <span id='total-2'>0</span>");
     str += "</br></fieldset>";
   }
   str += F("<form action='/' method='POST'><button class='button "
@@ -370,8 +316,6 @@ void theGraph(const char *type1, const char *type2, String title1,
 
 void calendarGas() {
   String str = "";
-  char buffer[64];
-  File file = FST.open("/YearGc.log", "r");
   monitoring = false;
 
   addGraphHead(str);
@@ -381,31 +325,35 @@ void calendarGas() {
         "src='https://www.gstatic.com/charts/loader.js'></script><script "
         "type='text/javascript'>google.charts.load('current', "
         "{packages:['calendar']});google.charts.setOnLoadCallback(drawChart);");
-  str += F(
-      "function drawChart() {var dataTable=new "
-      "google.visualization.DataTable(); dataTable.addColumn({ type: 'date', "
-      "id: 'Datum' }); dataTable.addColumn({type: 'number', id: 'Gebruik'});");
-  str += F("dataTable.addRows([");
+  str += F("function drawChart() {");
 
+  str += F("var rawData = [");
   server.sendContent(str);
-  // Log.verboseln(str);
 
-  if (!file) {
-    Log.verboseln("Failed to open file for reading");
-    server.sendContent("[new Date(2023,0,1), 0],");
-  } else {
-    while (file.available()) {
-      int l = file.readBytesUntil('\n', buffer, sizeof(buffer));
-      buffer[l] = 0;
-      server.sendContent("[new Date");
-      server.sendContent(buffer);
-    }
-    file.close();
-    delay(200);
-  }
+  sendStatistics(String("Gc"), String("year"));
+  delay(200);
+
+  str = F("];");
+
+  str += F("var dataTable = new google.visualization.DataTable();");
+  str += F("dataTable.addColumn('date', 'Datum');");
+  str += F("dataTable.addColumn('number', 'Gebruik');");
+  // Calculate the difference between 2 consecutive records
+  str += F("var prevDate = null;");
+  str += F("var prevValue = null;");
+  str += F("var rows = rawData.reduce((accumulator, currentValue, currentIndex) => {");
+  str += F("if (currentIndex !== 0) { accumulator.push([new Date(prevDate*1000), currentValue[1] - prevValue]);}");
+  str += F("prevDate = currentValue[0];");
+  str += F("prevValue = currentValue[1];");
+  str += F("return accumulator;");
+  str += F("}, []);");
+  // Add the data to the chart
+  str += F("dataTable.addRows(rows);");
+  server.sendContent(str);
+
   str = "";
   str +=
-      F("]); var chart = new "
+      F("var chart = new "
         "google.visualization.Calendar(document.getElementById('calendar_gas'))"
         "; var options = { title: 'Gas gebruiksintensiteit', height: 350};");
   str += F(

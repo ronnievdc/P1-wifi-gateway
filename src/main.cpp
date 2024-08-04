@@ -181,8 +181,8 @@ const char *host = "P1test";
 #elif DEBUG == 2
 const char *host = "P1test";
 #define BLED LED_BUILTIN
-#define PRINTER LOG_PRINTER_TELNET
-// #define PRINTER LOG_PRINTER_SERIAL
+// #define PRINTER LOG_PRINTER_TELNET
+#define PRINTER LOG_PRINTER_SERIAL
 #include "DSMR5Mock.h"
 DSMR5Mock dSMRMock(DR);
 #define DataSerial dSMRMock
@@ -213,7 +213,6 @@ const char *host = "P1wifi";
 #include <ArduinoLog.h>
 #include <TZ.h>
 #define MYTZ TZ_Europe_Amsterdam
-#include "MyAlarm.h"
 #include "TimeLib.h"
 #include <coredecls.h> // settimeofday_cb()
 
@@ -275,6 +274,12 @@ WiFiManager *wifiManager;
 #include "logger.h"
 LogPrinterCreator *logPrinterCreator;
 Print *logPrinter;
+
+#include "./DSMRData.h"
+DSMRData dsmrData;
+
+#include "./TimeManager.h"
+TimeManager timeManager;
 
 void setup() {
   // Configure PINS
@@ -376,23 +381,11 @@ void setup() {
     } else
       Log.verboseln("done.");
 
-    Log.verboseln("Reading logdata:");
-    File logData = FST.open("/logData.txt", "r");
-    if (logData) {
-      logData.read((byte *)&log_data, sizeof(log_data) / sizeof(byte));
-      logData.close();
-    } else {
-      Log.verboseln("Failed to open logData.txt for reading");
-      needToInitLogVars = true;
-      needToInitLogVarsGas = true;
-    }
     if (zapfiles)
       zapFiles();
 
     // Log.verboseln("Something is terribly wrong, no network connection");
-    timerAlarm.stopService();
-    settimeofday_cb(timeIsSet_cb);
-    configTime(MYTZ, "pool.ntp.org");
+    timeManager.syncWithNTP(MYTZ, timeIsSet_cb);
 
     Log.verboseln("All systems are go...");
     alignToTelegram();
@@ -508,8 +501,6 @@ void loop() {
   }
 
   if (millis() > EverSoOften) {
-    checkCounters();
-    resetFlags();
     doWatchDogs();
     EverSoOften = millis() + 22000;
   }
@@ -520,7 +511,6 @@ void loop() {
     mqtt_client.disconnect();
     ESP.restart();
   }
-  timerAlarm.update();
 
 #if PRINTER == LOG_PRINTER_TELNET
   logPrinterTelnetloop();

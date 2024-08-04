@@ -63,15 +63,6 @@ void RTS_off() {          // switch off Data Request
   Log.verbose("%d\n", nextUpdateTime);
 }
 
-bool isNumber(char *res, int len) {
-  for (int i = 0; i < len; i++) {
-    if (((res[i] < '0') || (res[i] > '9')) && (res[i] != '.' && res[i] != 0)) {
-      return false;
-    }
-  }
-  return true;
-}
-
 int FindCharInArray(char array[], char c, int len) {
   for (int i = 0; i < len; i++) {
     if (array[i] == c) {
@@ -81,19 +72,14 @@ int FindCharInArray(char array[], char c, int len) {
   return -1;
 }
 
-String timestamp() {
-  return (String) "time: " + hour() + ":" + minute() + ":" + second();
-}
-
 String timestampkaal() {
   return (String)hour() + ":" + minute() + ":" + second();
 }
 
 void timeIsSet_cb() {
   if (!timeIsSet) {
-    Log.verboseln("Time is set, starting timer service.");
     timeIsSet = true;
-    timerAlarm.startService();
+    initTimers();
   }
 }
 
@@ -216,68 +202,6 @@ void deleteFile(const char *path) {
   }
 }
 
-/*
- * Read a file one field at a time.
- *
- * file - File to read.
- *
- * str - Character array for the field.
- *
- * size - Size of str array.
- *
- * delim - String containing field delimiters.
- *
- * return - length of field including terminating delimiter.
- *
- * Note, the last character of str will not be a delimiter if
- * a read error occurs, the field is too long, or the file
- * does not end with a delimiter.  Consider this an error
- * if not at end-of-file.
- *
- */
-// size_t readField(File* file, char* str, size_t size, char* delim) {
-//  char ch;
-//  size_t n = 0;
-//
-//
-//  while ((n + 1) < size){ // && filel.available()) {
-//    ch = file->read();
-//    Log.verbose(ch);
-//      // Delete CR.
-//      if (ch == '\r') {
-//      continue;
-//    }
-//    str[n++] = ch;
-//    if (strchr(delim, ch)) {
-//        break;
-//    }
-//  }
-//  str[n] = '\0';
-//  return n;
-//}
-
-int numLines(const char *path) {
-  int numberOfLines = 0;
-  char ch;
-
-  Log.verboseln("counting lines in file");
-  File file = FST.open(path, "r");
-  if (!file) {
-    Log.verboseln("Failed to open file for reading");
-    return 0;
-  }
-
-  Log.verboseln("counting lines …");
-  while (file.available()) {
-    ch = file.read();
-    if (ch == '\n')
-      numberOfLines++;
-  }
-  Log.verbose("%d\n", numberOfLines);
-  file.close();
-  return numberOfLines;
-}
-
 boolean MountFS() {
   Log.verboseln("Mount LittleFS");
   if (!FST.begin()) {
@@ -360,6 +284,10 @@ void zapFiles() {
   deleteFile("/YearTR.log");
   deleteFile("/YearG.log");
   deleteFile("/YearGc.log");
+
+  deleteFile("/today.log");
+  deleteFile("/yesterday.log");
+  deleteFile("/2024.log");
   Log.verboseln("done.");
 }
 
@@ -388,89 +316,6 @@ void formatFS() {
   }
 }
 
-String totalXY(const char *typeC, String period) {
-  char value[12];
-  String type;
-  type = typeC[0];
-  type += typeC[1];
-  if (period == "day") {
-    if (type == "E1")
-      return (String)(dsmrData.energy_delivered_tariff1.val() - atof(log_data.dayE1));
-    if (type == "E2")
-      return (String)(dsmrData.energy_delivered_tariff2.val() - atof(log_data.dayE2));
-    if (type == "R1")
-      return (String)(dsmrData.energy_returned_tariff1.val() - atof(log_data.dayR1));
-    if (type == "R2")
-      return (String)(dsmrData.energy_returned_tariff2.val() - atof(log_data.dayR2));
-    if (type == "TE") {
-      dtostrf((dsmrData.energy_delivered_tariff1.val() - atof(log_data.dayE1)) +
-                  (dsmrData.energy_delivered_tariff2.val() - atof(log_data.dayE2)),
-              6, 2, value);
-      return (String)value;
-    }
-    if (type == "TR") {
-      dtostrf((dsmrData.energy_returned_tariff1.val() - atof(log_data.dayR1)) +
-                  (dsmrData.energy_returned_tariff2.val() - atof(log_data.dayR2)),
-              6, 2, value);
-      return (String)value;
-    }
-    if (type == "G0")
-      return (String)(dsmrData.gas_delivered.toFloat() - atof(log_data.dayG));
-
-  } else if (period == "week") {
-    if (type == "E1")
-      return (String)(dsmrData.energy_delivered_tariff1.val() - atof(log_data.weekE1));
-    if (type == "E2")
-      return (String)(dsmrData.energy_delivered_tariff2.val() - atof(log_data.weekE2));
-    if (type == "R1")
-      return (String)(dsmrData.energy_returned_tariff1.val() - atof(log_data.weekR1));
-    if (type == "R2")
-      return (String)(dsmrData.energy_returned_tariff2.val() - atof(log_data.weekR2));
-    if (type == "TE") {
-      dtostrf((dsmrData.energy_delivered_tariff1.val() - atof(log_data.weekE1)) +
-                  (dsmrData.energy_delivered_tariff2.val() - atof(log_data.weekE2)),
-              6, 2, value);
-      return (String)value;
-    }
-    if (type == "TR") {
-      dtostrf((dsmrData.energy_returned_tariff1.val() - atof(log_data.weekR1)) +
-                  (dsmrData.energy_returned_tariff2.val() - atof(log_data.weekR2)),
-              6, 2, value);
-      return (String)value;
-    }
-    if (type == "G0")
-      return (String)(dsmrData.gas_delivered.toFloat() - atof(log_data.weekG));
-  } else if (period == "month") {
-    if (type == "E1")
-      return (String)(dsmrData.energy_delivered_tariff1.val() - atof(log_data.monthE1));
-    if (type == "E2")
-      return (String)(dsmrData.energy_delivered_tariff2.val() - atof(log_data.monthE2));
-    if (type == "R1")
-      return (String)(dsmrData.energy_returned_tariff1.val() -
-                      atof(log_data.monthR1));
-    if (type == "R2")
-      return (String)(dsmrData.energy_returned_tariff2.val() -
-                      atof(log_data.monthR2));
-    if (type == "TE") {
-      dtostrf((dsmrData.energy_delivered_tariff1.val() - atof(log_data.monthE1)) +
-                  (dsmrData.energy_delivered_tariff2.val() - atof(log_data.monthE2)),
-              6, 2, value);
-      return (String)value;
-    }
-    if (type == "TR") {
-      dtostrf((dsmrData.energy_returned_tariff1.val() - atof(log_data.monthR1)) +
-                  (dsmrData.energy_returned_tariff2.val() - atof(log_data.monthR2)),
-              6, 2, value);
-      return (String)value;
-    }
-    if (type == "G0")
-      return (String)(dsmrData.gas_delivered.toFloat() - atof(log_data.monthG));
-  } else if (period == "year") {
-    return "Year not implemented yet";
-  }
-  return "fault";
-}
-
 void identifyMeter(){
   if (datagram.indexOf("ISK5\\2M550E-1011") != -1) meterName = "ISKRA AM550e-1011";
   if (datagram.indexOf("KFM5KAIFA-METER") != -1) meterName = "Kaifa  (MA105 of MA304)";
@@ -479,7 +324,6 @@ void identifyMeter(){
   if (datagram.indexOf("Ene5\\T210-D") != -1) meterName = "Sagemcom T210-D";
   if (datagram.indexOf("FLU5\\") !=-1) {
     meterName = "Siconia";
-    countryCode = 32; // Belgium
   }
 
   Log.verboseln(meterName.c_str());
@@ -488,84 +332,18 @@ void identifyMeter(){
 }
 
 void initTimers() {
-#if DEBUG == 1
-  timerAlarm.createHour(59, 0, doHourlyLog);
-  timerAlarm.createHour(15, 0, doHourlyLog);
-  timerAlarm.createHour(30, 0, doHourlyLog);
-  timerAlarm.createHour(45, 0, doHourlyLog);
+  Log.traceln("initTimers");
+#if DEBUG == 2
+  for (int i = 0; i < 60; i += 60) {
+    Log.verboseln("MyAlarm createHour XX:%d:00 local time", i);
+    timeManager.createHour(i, 0, doHourlyLog);
+  }
 #else
-  timerAlarm.createHour(59, 0, doHourlyLog);
+  Log.verboseln("MyAlarm createHour XX:00:00 local time");
+  timeManager.createHour(0, 0, doHourlyLog);
 #endif
-  timerAlarm.createDay(23, 58, 0, doDailyLog);
-  timerAlarm.createWeek(timerAlarm.dw_Sunday, 23, 59, 0, doWeeklyLog);
-  timerAlarm.createMonth(31, 0, 0, 0, doMonthlyLog);
-}
-
-void checkCounters() {
-  // see logging.ino
-  if (timeIsSet && !TimeTriggersSet) {
-    initTimers();
-    TimeTriggersSet = true;
-  }
-
-  if (coldbootE && gotPowerReading) {
-
-    if (needToInitLogVars) {
-      doInitLogVars();
-    }
-    resetEnergyDaycount();
-    resetEnergyMonthcount();
-  }
-  if (coldbootG && gotGasReading) {
-    if (needToInitLogVarsGas) {
-      doInitLogVarsGas();
-    }
-    resetGasCount();
-  }
-
-  //  if (!CHK_FLAG(logFlags, hourFlag) && ( minute() == 10 || minute() == 20 ||
-  //  minute() == 30 || minute() == 40 || minute() == 50) ) doHourlyLog();
-
-  // if (!minFlag && second() > 55) doMinutelyLog();
-
-  // if (!hourFlag && minute() > 58) doHourlyLog();
-  // if (!dayFlag && (hour() == 23) && (minute() == 59)) doDailyLog();
-  // if (!weekFlag && weekday() == 1 && hour() == 23 && minute() == 59)
-  // doWeeklyLog(); // day of the week (1-7), Sunday is day 1 if (!monthFlag &&
-  // day() == 28 && month() == 2 && hour() == 23 && minute() == 59 && year() !=
-  // 2024 && year() != 2028 ) doMonthlyLog();
-  //  if (!monthFlag && day() == 29 && month() == 2 && hour() == 23 && minute()
-  //  == 59 ) doMonthlyLog(); // schrikkeljaren if (!monthFlag && day() == 30 &&
-  //  (month() == 4 || month() == 6 || month()== 9 || month() == 11) && hour()
-  //  == 23 && minute() == 59 ) doMonthlyLog();
-  if (!monthFlag && day() == 31 &&
-      (month() == 1 || month() == 3 || month() == 5 || month() == 7 ||
-       month() == 8 || month() == 10 || month() == 12) &&
-      hour() == 23 && minute() == 59)
-    doMonthlyLog();
-  if (!monthFlag && day() == 31 && month() == 12 && hour() == 23 &&
-      minute() == 59)
-    doYearlyLog();
-}
-
-void resetFlags() {
-
-  if (minFlag && (second() > 5) && (second() < 10))
-    minFlag = false;
-  if (checkMinute >= 59)
-    checkMinute = 0;
-  if (hourFlag &&
-      ((minute() > (checkMinute + 2)) && (minute() < (checkMinute + 4))))
-    hourFlag = false; // if (hourFlag &&  (minute() > 24)) hourFlag = false; //
-                      // CLR_FLAG(logFlags, hourFlag);
-  if (dayFlag && (day() > 0))
-    dayFlag = false;
-  if (weekFlag && (weekday() > 1))
-    weekFlag = false;
-  if (monthFlag && (day() > 0))
-    monthFlag = false;
-  if (yearFlag && (day() == 1) && month() == 1)
-    yearFlag = false;
+  Log.verboseln("MyAlarm createDay 00:00:00 local time");
+  timeManager.createDay(0, 0, 0, doDailyLog);
 }
 
 void doWatchDogs() {
@@ -580,17 +358,11 @@ void doWatchDogs() {
             string2char(timestampkaal()));
     if (MQTT_debug)
       send_mqtt_message("p1wifi/logging", payload);
-    hourFlag = false;
     nextUpdateTime = millis() + 10000;
     OEstate = false;
     state = WAITING;
     monitoring = true;
   }
-  // if (minute() == 23) hourFlag = false; // clear all flags at a safe
-  // timeslot. if (minute() == 43) hourFlag = false; // clear all flags at a
-  // safe timeslot. if (!monitoring && (minute() == 16 || minute() == 31 ||
-  // minute() == 46)  ) monitoring = true; // kludge to make sure we keep
-  // monitoring
 }
 
 char *string2char(String str) {
